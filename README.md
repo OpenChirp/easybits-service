@@ -15,12 +15,14 @@ The problem with flatbuffers it that the data sent to wire is too large. A descr
 ```
 This amount of overhead is not cool when your wireless link is only designed for passing a few bytes.
 
-Protobuff was a clear choice due its familiarity and great wire data size.
+Protobuf was a clear choice due its familiarity and great wire data size.
 Protobuf has been around for some time and has become the accepted standard for serialization.
 The data on the wire is understandable and compresses how you would expect.
 They even compress integers when the value is small!
 The down side is that the code to support all the IDL features is relatively slow and large in size.
 This problem is mitigated on the device side by an implementation called Nanopb.
+
+The second major hurdle with using Protobuf is how to dynamically parse messages of many different types.
 
 ## Discussion
 * Although I do like the name HappyBitz because it makes me think of Happy Feet, it would probably

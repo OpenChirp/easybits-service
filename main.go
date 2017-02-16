@@ -108,7 +108,7 @@ func main() {
 
 	log.Println("Starting")
 
-	/* Get ServiceNoserviceinfoserviceinfode Information */
+	/* Get ServiceNode Information */
 	serviceinfo, err := framework.NewHost(frameworkServer).RequestServiceInfo(serviceID)
 	if err != nil {
 		log.Fatalln("Failed to fecth service info from framework server:", err.Error())
