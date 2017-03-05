@@ -21,41 +21,70 @@ import (
 
 	"encoding/json"
 
+	"strings"
+
+	"strconv"
+
 	MQTT "github.com/eclipse/paho.mqtt.golang"
-	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/protoc-gen-go/descriptor"
+	"github.com/linux4life798/dproto"
 	"github.com/openchirp/framework"
-	"github.com/openchirp/happybitz/mio"
 )
+
+const mappingSeparator = ","
 
 type ServiceConfig struct {
 	Mapping []string `json:"mapping"`
 }
 
-type FieldMap struct {
-	num2name []string
-	name2num map[string]uint
+var typeName2ProtoType = map[string]descriptor.FieldDescriptorProto_Type{
+	"int32":  descriptor.FieldDescriptorProto_TYPE_INT32,
+	"uint32": descriptor.FieldDescriptorProto_TYPE_UINT32,
+	"sint32": descriptor.FieldDescriptorProto_TYPE_SINT32,
+	"bool":   descriptor.FieldDescriptorProto_TYPE_BOOL,
 }
 
-func NewFieldMap(Num2Field []string) *FieldMap {
-	fmap := new(FieldMap)
-	fmap.num2name = make([]string, len(Num2Field))
-	copy(fmap.num2name, Num2Field)
-	fmap.name2num = make(map[string]uint, len(Num2Field))
-	for num, name := range Num2Field {
-		fmap.name2num[name] = uint(num)
+type Device struct {
+	num2name map[uint32]string
+	name2num map[string]uint32
+	fieldMap *dproto.ProtoFieldMap
+}
+
+func NewDevice(mapping []string) *Device {
+	d := new(Device)
+	d.num2name = make(map[uint32]string, len(mapping))
+	d.name2num = make(map[string]uint32, len(mapping))
+	d.fieldMap = dproto.NewProtoFieldMap()
+
+	for _, m := range mapping {
+		parts := strings.Split(m, mappingSeparator)
+		if len(parts) != 3 {
+			return nil
+		}
+		fname := parts[0]
+		ftype, ok := typeName2ProtoType[parts[1]]
+		if !ok {
+			return nil
+		}
+		fnum, err := strconv.ParseUint(parts[2], 10, 32)
+		if err != nil {
+			return nil
+		}
+		d.num2name[uint32(fnum)] = fname
+		d.name2num[fname] = uint32(fnum)
+		d.fieldMap.Add(dproto.FieldNum(fnum), ftype)
 	}
-	return fmap
+
+	return d
 }
 
-func (fmap *FieldMap) GetFieldName(num uint) (string, bool) {
-	if num < uint(len(fmap.num2name)) {
-		return fmap.num2name[num], true
-	}
-	return "", false
+func (d *Device) GetFieldName(num uint32) (string, bool) {
+	name, ok := d.num2name[num]
+	return name, ok
 }
 
-func (fmap *FieldMap) GetFieldNum(name string) (uint, bool) {
-	num, ok := fmap.name2num[name]
+func (d *Device) GetFieldNum(name string) (uint32, bool) {
+	num, ok := d.name2num[name]
 	return num, ok
 }
 
@@ -134,7 +163,7 @@ func main() {
 	/* Subscribe to Device Feeds */
 	for _, dev := range serviceinfo.DeviceNodes {
 		var config ServiceConfig
-		var fmap *FieldMap
+		var d *Device
 
 		/* Decode Service Config from DeviceNode */
 		err := json.Unmarshal(dev.ServiceConfig, &config)
@@ -144,11 +173,16 @@ func main() {
 		}
 
 		/* Build Two-Way FieldID-Name Map */
-		fmap = NewFieldMap(config.Mapping)
+		// fmap = NewFieldMap(config.Mapping)
+		d = NewDevice(config.Mapping)
+		if d == nil {
+			log.Printf("Error - Device %s (%s) config.Mapping could not be parsed", dev.ID, dev.Name)
+			continue
+		}
 
 		/* Subscribe to Device's rawrx Data Stream */
 		token := c.Subscribe(dev.MQTTRoot+"/"+deviceRxData, byte(mqttQos), func(c MQTT.Client, m MQTT.Message) {
-			miovalue := &mio.MIOValue{}
+			// miovalue := &mio.MIOValue{}
 
 			/* Decode base64 */
 			data, err := base64.StdEncoding.DecodeString(string(m.Payload()))
@@ -159,24 +193,24 @@ func main() {
 			}
 
 			/* Decode Protobuf */
-			if err := proto.Unmarshal(data, miovalue); err != nil {
-				// log error and proceed to next packet
-				log.Println("Error - Unmarshaling mio:", err)
-				return
+			fields, err := d.fieldMap.DecodeBuffer(data)
+			if err != nil {
+				log.Println("Error while decoding rx buffer")
 			}
 
-			/* Resolve Field Mapping */
-			fieldname, ok := fmap.GetFieldName(uint(miovalue.Field))
-			if !ok {
-				// if no name specified, just use the field number as data topic
-				fieldname = fmt.Sprint(miovalue.Field)
+			for _, field := range fields {
+				/* Resolve Field Mapping */
+				fieldname, ok := d.GetFieldName(uint32(field.Field))
+				if !ok {
+					// if no name specified, just ignore it
+					continue
+				}
+				// /* Publish Data Named Field */
+				topic := dev.MQTTRoot + "/" + fieldname
+				message := fmt.Sprint(field.Value)
+				c.Publish(topic, byte(mqttQos), false, message)
+				log.Println("Published", string(message), "to", topic)
 			}
-
-			/* Publish Data Named Field */
-			topic := dev.MQTTRoot + "/" + fieldname
-			message := fmt.Sprint(miovalue.Value)
-			c.Publish(topic, byte(mqttQos), false, message)
-			log.Println("Published", string(message), "to", topic)
 		})
 		if token.Wait(); token.Error() != nil {
 			log.Println("Failed to subscribe to", dev.MQTTRoot+"/"+deviceRxData)
