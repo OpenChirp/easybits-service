@@ -109,6 +109,8 @@ func (d *Device) Deregister(c MQTT.Client) error {
 	}
 	log.Println("Unsubscribed from", d.node.MQTTRoot+"/"+deviceRxData)
 
+	d.isregistered = false
+
 	return nil
 }
 
@@ -152,6 +154,8 @@ func (d *Device) Register(c MQTT.Client) error {
 		return ErrRegistrationFailed
 	}
 	log.Println("Subscribed to", d.node.MQTTRoot+"/"+deviceRxData)
+
+	d.isregistered = true
 
 	return nil
 }
