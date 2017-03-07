@@ -51,6 +51,27 @@ func NewDevice(node framework.NodeDescriptor) *Device {
 	return &Device{node: node}
 }
 
+func (d *Device) IsMappingEqual(mapping []string) bool {
+	if d.mapping == nil && mapping == nil {
+		return true
+	}
+	if d.mapping == nil || mapping == nil {
+		return false
+	}
+	//ASSERT: both must not be nil
+
+	if len(d.mapping) != len(mapping) {
+		return false
+	}
+
+	for i, v := range d.mapping {
+		if v != mapping[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func (d *Device) SetMapping(mapping []string) error {
 
 	if d.isregistered {
