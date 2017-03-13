@@ -35,6 +35,9 @@ var typeName2ProtoType = map[string]descriptor.FieldDescriptorProto_Type{
 	"int32":  descriptor.FieldDescriptorProto_TYPE_INT32,
 	"uint32": descriptor.FieldDescriptorProto_TYPE_UINT32,
 	"sint32": descriptor.FieldDescriptorProto_TYPE_SINT32,
+	"int64":  descriptor.FieldDescriptorProto_TYPE_INT64,
+	"uint64": descriptor.FieldDescriptorProto_TYPE_UINT64,
+	"sint64": descriptor.FieldDescriptorProto_TYPE_SINT64,
 	"bool":   descriptor.FieldDescriptorProto_TYPE_BOOL,
 }
 
