@@ -19,6 +19,8 @@ import (
 
 	"encoding/json"
 
+	"time"
+
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"github.com/openchirp/framework"
 )
@@ -78,6 +80,9 @@ func main() {
 
 	log.Println("Starting")
 
+	var serviceinfo framework.ServiceNode
+	var devices map[string]*Device = make(map[string]*Device)
+
 	/* Get ServiceNode Information */
 	serviceinfo, err := framework.NewHost(frameworkServer).RequestServiceInfo(serviceID)
 	if err != nil {
@@ -108,29 +113,25 @@ func main() {
 		/* Decode Service Config from DeviceNode */
 		err := json.Unmarshal(dev.ServiceConfig, &config)
 		if err != nil {
-			log.Printf("Error - Device %s (%s) config could not be parsed", dev.ID, dev.Name)
+			log.Printf("Error parsing conf for Device %s (%s)", dev.ID, dev.Name)
 			continue // ignore device
 		}
 
 		/* Build Two-Way FieldID-Name Map */
-		nodedescriptor := framework.NodeDescriptor{
-			ID:       dev.ID,
-			Name:     dev.Name,
-			MQTTRoot: dev.MQTTRoot,
-		}
-		d := NewDevice(nodedescriptor)
+		d := NewDevice(dev.NodeDescriptor)
 		err = d.SetMapping(config)
 		if err != nil {
-			log.Printf("Error - Device %s (%s): %s\n", dev.ID, dev.Name, err.Error())
+			log.Printf("Error setting map for Device %s (%s): %v\n", dev.ID, dev.Name, err)
 			continue
 		}
 
 		err = d.Register(c)
 		if err != nil {
-			log.Printf("Error - Device %s (%s): %s\n", dev.ID, dev.Name, err.Error())
+			log.Printf("Error registering Device %s (%s): %v\n", dev.ID, dev.Name, err)
 			continue
 		}
 
+		devices[dev.NodeDescriptor.ID] = d
 	}
 
 	log.Println("Subscribed to all device data streams")
@@ -138,7 +139,83 @@ func main() {
 	/* Wait for SIGINT */
 	signals := make(chan os.Signal)
 	signal.Notify(signals, os.Interrupt)
-	<-signals
+
+	for {
+		select {
+		case <-time.After(time.Duration(10) * time.Second):
+			// update Configs
+
+			newdevices := make(map[string]*Device)
+
+			log.Println("Time To Update Configs")
+			/* Get ServiceNode Information */
+			serviceinfo, err = framework.NewHost(frameworkServer).RequestServiceInfo(serviceID)
+			if err != nil {
+				log.Fatalln("Failed to fecth service info from framework server:", err.Error())
+			}
+			log.Println("Sucessfully retrieved ServiceNode information")
+
+			/* Update Device Configs */
+			for _, dev := range serviceinfo.DeviceNodes {
+				var config ServiceConfig
+
+				/* Decode Service Config from DeviceNode */
+				err := json.Unmarshal(dev.ServiceConfig, &config)
+				if err != nil {
+					log.Printf("Error parsing conf for Device %s (%s)", dev.ID, dev.Name)
+					continue // ignore device
+				}
+
+				/* Check if it is an existing device that can be updated */
+				if d, ok := devices[dev.NodeDescriptor.ID]; ok {
+					// simply update and add to newdevices
+					log.Printf("Updating mapping for device %s (%s)", dev.ID, dev.Name)
+					err = d.UpdateMapping(c, config)
+					if err != nil {
+						log.Printf("Error updating Device %s (%s): %v\n", dev.ID, dev.Name, err)
+						continue
+					}
+
+					newdevices[dev.NodeDescriptor.ID] = d
+					delete(devices, dev.NodeDescriptor.ID)
+					continue
+				}
+
+				/* Build a new Device */
+				log.Printf("Adding mapping for device %s (%s)\n", dev.ID, dev.Name)
+				d := NewDevice(dev.NodeDescriptor)
+				err = d.SetMapping(config)
+				if err != nil {
+					log.Printf("Error setting map for Device %s (%s): %v\n", dev.ID, dev.Name, err)
+					continue
+				}
+
+				err = d.Register(c)
+				if err != nil {
+					log.Printf("Error registering Device %s (%s): %v\n", dev.ID, dev.Name, err)
+					continue
+				}
+
+				newdevices[dev.NodeDescriptor.ID] = d
+			}
+
+			/* Deregister and delete old devices */
+			for _, d := range devices {
+				log.Printf("Removing mapping for device %s (%s)\n", d.ID, d.Name)
+				err = d.Deregister(c)
+				if err != nil {
+					log.Printf("Error deregistering Device %s: %v\n", d.ID, err)
+				}
+				delete(devices, d.ID)
+			}
+
+			/* Replace devices with newdevices map */
+			devices = newdevices
+		case <-signals:
+			goto shutdown
+		}
+	}
+shutdown:
 
 	log.Println("Shutting down")
 }
