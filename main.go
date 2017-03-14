@@ -32,23 +32,27 @@ type ServiceConfig struct {
 }
 
 const (
-	deviceRxData = "rawrx"
-	deviceTxData = "rawtx"
+	mqttclientidprefix = "easybits"
+	deviceRxData       = "rawrx"
+	deviceTxData       = "rawtx"
 )
 
 const (
 	defaultframeworkserver = "http://localhost"
-	mqttdefaultbroker      = "tcp://localhost:1883"
-	mqttclientidprefix     = "happybitz"
+	defaultmqttbroker      = "tcp://localhost:1883"
+	defaultmqttuser        = ""
+	defaultmqttpass        = ""
+	defaultserviceid       = ""
+	defaultmqttqos         = 0
 )
 
 /* Options to be filled in by arguments */
+var serviceID string
 var frameworkServer string
 var mqttBroker string
 var mqttUser string
 var mqttPass string
 var mqttQos uint
-var serviceID string
 
 /* Generate a random client id for mqtt */
 func genclientid() string {
@@ -61,12 +65,12 @@ func genclientid() string {
 
 /* Setup argument flags and help prompt */
 func init() {
+	flag.StringVar(&serviceID, "service_id", defaultserviceid, "Sets the service ID associated with this service instance")
 	flag.StringVar(&frameworkServer, "framework_server", defaultframeworkserver, "Sets the HTTP REST framework server")
-	flag.StringVar(&mqttBroker, "mqtt_broker", mqttdefaultbroker, "Sets the MQTT broker")
-	flag.StringVar(&mqttUser, "mqtt_user", "", "Sets the MQTT username")
-	flag.StringVar(&mqttPass, "mqtt_pass", "", "Sets the MQTT password")
-	flag.UintVar(&mqttQos, "mqtt_qos", 0, "Sets the MQTT QOS to use when publishing and subscribing [0, 1, or 2]")
-	flag.StringVar(&serviceID, "service_id", "", "Sets the service ID associated with this service instance")
+	flag.StringVar(&mqttBroker, "mqtt_broker", defaultmqttbroker, "Sets the MQTT broker")
+	flag.StringVar(&mqttUser, "mqtt_user", defaultmqttuser, "Sets the MQTT username")
+	flag.StringVar(&mqttPass, "mqtt_pass", defaultmqttpass, "Sets the MQTT password")
+	flag.UintVar(&mqttQos, "mqtt_qos", defaultmqttqos, "Sets the MQTT QOS to use when publishing and subscribing [0, 1, or 2]")
 }
 
 func main() {

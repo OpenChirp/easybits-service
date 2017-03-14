@@ -251,14 +251,12 @@ func (d *Device) register(c MQTT.Client) error {
 				log.Println("Error - Looking up field type for " + pm.fname + " for device " + d.ID)
 				return
 			}
-			log.Println()
 			value, err := dproto.ParseAs(string(m.Payload()), typ, 0)
 			if err != nil {
 				// log error and ignore publication
 				log.Println("Error - Parsing published value \""+string(m.Payload())+"\" for "+pm.fname+" for device "+d.ID+" as a "+typ.String()+":", err)
 				return
 			}
-			log.Printf("pubbing: %d as field number %d\n", value, dproto.FieldNum(fnum))
 			values := []dproto.FieldValue{dproto.FieldValue{Field: dproto.FieldNum(fnum), Value: value}}
 			buf, err := d.fieldMap.EncodeBuffer(values)
 			if err != nil {
@@ -337,7 +335,9 @@ func (d *Device) UpdateMapping(c MQTT.Client, mapping ServiceConfig) error {
 		if err != nil {
 			return err
 		}
-
+		log.Println("Update needed")
+	} else {
+		log.Println("Update not needed")
 	}
 	return nil
 }
