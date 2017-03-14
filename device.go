@@ -160,6 +160,10 @@ func (d *Device) setMapping(mapping ServiceConfig) error {
 
 // deregister unsubscribes all device topics with the MQTT broker
 func (d *Device) deregister(c MQTT.Client) error {
+	if !d.isregistered {
+		return ErrDeviceNotRegistered
+	}
+
 	/* Unsubscribe from Device's rawrx Data Stream */
 	token := c.Unsubscribe(d.MQTTRoot + "/" + deviceRxData)
 	if token.Wait(); token.Error() != nil {
@@ -174,6 +178,10 @@ func (d *Device) deregister(c MQTT.Client) error {
 
 // register sets up all subscriptions with MQTT broker for the device
 func (d *Device) register(c MQTT.Client) error {
+
+	if d.isregistered {
+		return ErrDeviceRegistered
+	}
 
 	/* Subscribe to Device's rawrx Data Stream */
 	token := c.Subscribe(d.MQTTRoot+"/"+deviceRxData, byte(mqttQos), func(c MQTT.Client, m MQTT.Message) {
@@ -352,10 +360,6 @@ func (d *Device) Deregister(c MQTT.Client) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
-	if d.isregistered {
-		return ErrDeviceNotRegistered
-	}
-
 	return d.deregister(c)
 }
 
@@ -365,8 +369,5 @@ func (d *Device) Register(c MQTT.Client) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
-	if d.isregistered {
-		return ErrDeviceRegistered
-	}
 	return d.register(c)
 }
