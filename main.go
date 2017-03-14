@@ -44,11 +44,13 @@ const (
 	defaultmqttpass        = ""
 	defaultserviceid       = ""
 	defaultmqttqos         = 0
+	defaultRefreshTime     = 10 // seconds
 )
 
 /* Options to be filled in by arguments */
 var serviceID string
 var frameworkServer string
+var refreshTime uint
 var mqttBroker string
 var mqttUser string
 var mqttPass string
@@ -67,6 +69,7 @@ func genclientid() string {
 func init() {
 	flag.StringVar(&serviceID, "service_id", defaultserviceid, "Sets the service ID associated with this service instance")
 	flag.StringVar(&frameworkServer, "framework_server", defaultframeworkserver, "Sets the HTTP REST framework server")
+	flag.UintVar(&refreshTime, "refresh", defaultRefreshTime, "Sets the service config refresh time in seconds")
 	flag.StringVar(&mqttBroker, "mqtt_broker", defaultmqttbroker, "Sets the MQTT broker")
 	flag.StringVar(&mqttUser, "mqtt_user", defaultmqttuser, "Sets the MQTT username")
 	flag.StringVar(&mqttPass, "mqtt_pass", defaultmqttpass, "Sets the MQTT password")
@@ -146,8 +149,7 @@ func main() {
 
 	for {
 		select {
-		case <-time.After(time.Duration(10) * time.Second):
-			// update Configs
+		case <-time.After(time.Duration(refreshTime) * time.Second):
 
 			newdevices := make(map[string]*Device)
 
