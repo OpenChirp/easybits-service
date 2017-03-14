@@ -31,82 +31,133 @@ var ErrRegistrationFailed = errors.New("Error registration or deregistration fai
 
 const mappingSeparator = ","
 
-var typeName2ProtoType = map[string]descriptor.FieldDescriptorProto_Type{
-	"int32":  descriptor.FieldDescriptorProto_TYPE_INT32,
-	"uint32": descriptor.FieldDescriptorProto_TYPE_UINT32,
-	"sint32": descriptor.FieldDescriptorProto_TYPE_SINT32,
-	"int64":  descriptor.FieldDescriptorProto_TYPE_INT64,
-	"uint64": descriptor.FieldDescriptorProto_TYPE_UINT64,
-	"sint64": descriptor.FieldDescriptorProto_TYPE_SINT64,
-	"bool":   descriptor.FieldDescriptorProto_TYPE_BOOL,
+// parsedMapping holds the intermediate parsed parts of a config mapping
+type parsedMapping struct {
+	// fname if the field's name, which is the mqtt sub topic
+	fname string
+	// ftype is the field's protobuf type
+	ftype descriptor.FieldDescriptorProto_Type
+	// fnum is the field's protobuf enumeration
+	fnum uint32
 }
 
+func parseMapping(mapping string) (parsedMapping, error) {
+	pm := parsedMapping{}
+
+	/* Split the string into the three parameters */
+	parts := strings.Split(mapping, mappingSeparator)
+
+	/* Verify there are 3 parts */
+	if len(parts) != 3 {
+		return pm, ErrParseMapping
+	}
+
+	/* Get the three parameters of the mapping */
+
+	// Param 1 is the Field Name
+	fname := parts[0]
+	// Param 2 is the Field Protobuf Type
+	ftype, ok := dproto.ParseProtobufType(parts[1])
+	if !ok {
+		return pm, ErrParseMapping
+	}
+	// Param 3 is the Field Number
+	fnum, err := strconv.ParseUint(parts[2], 10, 32)
+	if err != nil {
+		return pm, ErrParseMapping
+	}
+
+	pm.fname = fname
+	pm.fnum = uint32(fnum)
+	pm.ftype = ftype
+	return pm, nil
+}
+
+// Device holds all configuration and lokoujp information about a device
+// that requests our service
 type Device struct {
 	isregistered bool
 	node         framework.NodeDescriptor
-	mapping      []string // saved to compare for changes later
+	mapping      ServiceConfig // saved to compare for changes later
 	num2name     map[uint32]string
 	name2num     map[string]uint32
 	fieldMap     *dproto.ProtoFieldMap
 }
 
+// NewDevice creates a new initialized Device
 func NewDevice(node framework.NodeDescriptor) *Device {
 	return &Device{node: node}
 }
 
-func (d *Device) IsMappingEqual(mapping []string) bool {
-	if d.mapping == nil && mapping == nil {
-		return true
-	}
-	if d.mapping == nil || mapping == nil {
+// IsMappingEqual return true is the given ServiceConfig matches
+// the one saved in the device. This is used to check if the device
+// needs to be updated.
+func (d *Device) IsMappingEqual(mapping ServiceConfig) bool {
+	// Recall len( []string(nil) ) == 0
+
+	if len(d.mapping.RxData) != len(mapping.RxData) {
 		return false
 	}
-	//ASSERT: both must not be nil
-
-	if len(d.mapping) != len(mapping) {
+	if len(d.mapping.TxData) != len(mapping.TxData) {
 		return false
 	}
 
-	for i, v := range d.mapping {
-		if v != mapping[i] {
+	for i, v := range d.mapping.RxData {
+		if v != mapping.RxData[i] {
+			return false
+		}
+	}
+
+	for i, v := range d.mapping.TxData {
+		if v != mapping.TxData[i] {
 			return false
 		}
 	}
 	return true
 }
 
-func (d *Device) SetMapping(mapping []string) error {
+// SetMapping sets a device's mappings from a service config
+func (d *Device) SetMapping(mapping ServiceConfig) error {
+
+	log.Printf("SetMapping: %v\n", mapping)
 
 	if d.isregistered {
 		return ErrDeviceRegistered
 	}
 
-	// copy for later comparison
-	d.mapping = make([]string, len(mapping))
-	copy(d.mapping, mapping)
+	/* Copy Service Config mapping for later comparison */
+	d.mapping = mapping
+	d.mapping.RxData = make([]string, len(mapping.RxData))
+	d.mapping.TxData = make([]string, len(mapping.TxData))
+	copy(d.mapping.RxData, mapping.RxData)
+	copy(d.mapping.TxData, mapping.TxData)
 
-	d.num2name = make(map[uint32]string, len(mapping))
-	d.name2num = make(map[string]uint32, len(mapping))
+	d.num2name = make(map[uint32]string, len(mapping.RxData)+len(mapping.TxData))
+	d.name2num = make(map[string]uint32, len(mapping.RxData)+len(mapping.TxData))
 	d.fieldMap = dproto.NewProtoFieldMap()
 
 	// Add all associations
-	for _, m := range mapping {
-		parts := strings.Split(m, mappingSeparator)
-		if len(parts) != 3 {
-			return ErrParseMapping
-		}
-		fname := parts[0]
-		ftype, ok := typeName2ProtoType[parts[1]]
-		if !ok {
-			return ErrParseMapping
-		}
-		fnum, err := strconv.ParseUint(parts[2], 10, 32)
+	for _, m := range d.mapping.RxData {
+		pm, err := parseMapping(m)
 		if err != nil {
-			return ErrParseMapping
+			return err
 		}
-		d.num2name[uint32(fnum)] = fname
-		d.name2num[fname] = uint32(fnum)
-		d.fieldMap.Add(dproto.FieldNum(fnum), ftype)
+
+		/* Add the association  */
+		d.num2name[pm.fnum] = pm.fname
+		d.name2num[pm.fname] = pm.fnum
+		d.fieldMap.Add(dproto.FieldNum(pm.fnum), pm.ftype)
+	}
+	for _, m := range d.mapping.TxData {
+		pm, err := parseMapping(m)
+		if err != nil {
+			return err
+		}
+
+		/* Add the association  */
+		d.num2name[pm.fnum] = pm.fname
+		d.name2num[pm.fname] = pm.fnum
+		d.fieldMap.Add(dproto.FieldNum(pm.fnum), pm.ftype)
 	}
 	return nil
 }
@@ -121,6 +172,7 @@ func (d *Device) GetFieldNum(name string) (uint32, bool) {
 	return num, ok
 }
 
+// Deregister unsubscribes all device topics with the MQTT broker
 func (d *Device) Deregister(c MQTT.Client) error {
 	if d.isregistered {
 		return ErrDeviceNotRegistered
@@ -138,6 +190,7 @@ func (d *Device) Deregister(c MQTT.Client) error {
 	return nil
 }
 
+// Register sets up all subscriptions with MQTT broker for the device
 func (d *Device) Register(c MQTT.Client) error {
 	if d.isregistered {
 		return ErrDeviceRegistered
@@ -167,17 +220,71 @@ func (d *Device) Register(c MQTT.Client) error {
 				// if no name specified, just ignore it
 				continue
 			}
-			// /* Publish Data Named Field */
+			/* Publish Data Named Field */
 			topic := d.node.MQTTRoot + "/" + fieldname
 			message := fmt.Sprint(field.Value)
 			c.Publish(topic, byte(mqttQos), false, message)
 			log.Println("Published", string(message), "to", topic)
 		}
+
 	})
 	if token.Wait(); token.Error() != nil {
 		return ErrRegistrationFailed
 	}
 	log.Println("Subscribed to", d.node.MQTTRoot+"/"+deviceRxData)
+
+	/* Subscribe to all device's TX topics */
+	for _, m := range d.mapping.TxData {
+		pm, err := parseMapping(m) // last reference to m should be here
+		if err != nil {
+			return err
+		}
+
+		topic := d.node.MQTTRoot + "/" + pm.fname
+
+		/* Subscribe to Device's txdata streams */
+		token := c.Subscribe(topic, byte(mqttQos), func(c MQTT.Client, m MQTT.Message) {
+
+			fnum, ok := d.GetFieldNum(pm.fname)
+			if !ok {
+				// log error and ignore publication
+				log.Println("Error - Looking up field number for " + pm.fname + " for device " + d.node.ID)
+				return
+			}
+
+			typ, ok := d.fieldMap.Get(dproto.FieldNum(fnum))
+			if !ok {
+				// log error and ignore publication
+				log.Println("Error - Looking up field type for " + pm.fname + " for device " + d.node.ID)
+				return
+			}
+			log.Println()
+			value, err := dproto.ParseAs(string(m.Payload()), typ, 0)
+			if err != nil {
+				// log error and ignore publication
+				log.Println("Error - Parsing published value \""+string(m.Payload())+"\" for "+pm.fname+" for device "+d.node.ID+" as a "+typ.String()+":", err)
+				return
+			}
+			log.Printf("pubbing: %d as field number %d\n", value, dproto.FieldNum(fnum))
+			values := []dproto.FieldValue{dproto.FieldValue{Field: dproto.FieldNum(fnum), Value: value}}
+			buf, err := d.fieldMap.EncodeBuffer(values)
+			if err != nil {
+				// log error and ignore publication
+				log.Println("Error - Encoding field", pm.fname, "with", string(m.Payload()), "for device", d.node.ID)
+				return
+			}
+
+			// convert to base64 for rawtx
+			data := base64.StdEncoding.EncodeToString(buf)
+			c.Publish(d.node.MQTTRoot+"/"+deviceTxData, byte(mqttQos), false, data)
+			log.Println("Published", data, "to", topic)
+
+		})
+		if token.Wait(); token.Error() != nil {
+			return ErrRegistrationFailed
+		}
+		log.Println("Subscribed to", d.node.MQTTRoot+"/"+pm.fname)
+	}
 
 	d.isregistered = true
 

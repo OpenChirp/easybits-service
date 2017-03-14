@@ -24,7 +24,9 @@ import (
 )
 
 type ServiceConfig struct {
-	Mapping []string `json:"mapping"`
+	RxData []string `json:"rxmap"`
+	TxData []string `json:"txmap"`
+	// should add a TXBuffering time
 }
 
 const (
@@ -117,7 +119,7 @@ func main() {
 			MQTTRoot: dev.MQTTRoot,
 		}
 		d := NewDevice(nodedescriptor)
-		err = d.SetMapping(config.Mapping)
+		err = d.SetMapping(config)
 		if err != nil {
 			log.Printf("Error - Device %s (%s): %s\n", dev.ID, dev.Name, err.Error())
 			continue
