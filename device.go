@@ -6,6 +6,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 
 	"errors"
 
@@ -76,23 +77,25 @@ func parseMapping(mapping string) (parsedMapping, error) {
 // Device holds all configuration and lokoujp information about a device
 // that requests our service
 type Device struct {
+	lock         sync.RWMutex
 	isregistered bool
-	node         framework.NodeDescriptor
-	mapping      ServiceConfig // saved to compare for changes later
-	num2name     map[uint32]string
-	name2num     map[string]uint32
-	fieldMap     *dproto.ProtoFieldMap
+	framework.NodeDescriptor
+	// node     framework.NodeDescriptor
+	mapping  ServiceConfig // saved to compare for changes later
+	num2name map[uint32]string
+	name2num map[string]uint32
+	fieldMap *dproto.ProtoFieldMap
 }
 
 // NewDevice creates a new initialized Device
 func NewDevice(node framework.NodeDescriptor) *Device {
-	return &Device{node: node}
+	return &Device{NodeDescriptor: node}
 }
 
-// IsMappingEqual return true is the given ServiceConfig matches
+// isMappingEqual return true is the given ServiceConfig matches
 // the one saved in the device. This is used to check if the device
 // needs to be updated.
-func (d *Device) IsMappingEqual(mapping ServiceConfig) bool {
+func (d *Device) isMappingEqual(mapping ServiceConfig) bool {
 	// Recall len( []string(nil) ) == 0
 
 	if len(d.mapping.RxData) != len(mapping.RxData) {
@@ -116,15 +119,8 @@ func (d *Device) IsMappingEqual(mapping ServiceConfig) bool {
 	return true
 }
 
-// SetMapping sets a device's mappings from a service config
-func (d *Device) SetMapping(mapping ServiceConfig) error {
-
-	log.Printf("SetMapping: %v\n", mapping)
-
-	if d.isregistered {
-		return ErrDeviceRegistered
-	}
-
+// setMapping sets a device's mappings from a service config
+func (d *Device) setMapping(mapping ServiceConfig) error {
 	/* Copy Service Config mapping for later comparison */
 	d.mapping = mapping
 	d.mapping.RxData = make([]string, len(mapping.RxData))
@@ -162,42 +158,28 @@ func (d *Device) SetMapping(mapping ServiceConfig) error {
 	return nil
 }
 
-func (d *Device) GetFieldName(num uint32) (string, bool) {
-	name, ok := d.num2name[num]
-	return name, ok
-}
-
-func (d *Device) GetFieldNum(name string) (uint32, bool) {
-	num, ok := d.name2num[name]
-	return num, ok
-}
-
-// Deregister unsubscribes all device topics with the MQTT broker
-func (d *Device) Deregister(c MQTT.Client) error {
-	if d.isregistered {
-		return ErrDeviceNotRegistered
-	}
-
+// deregister unsubscribes all device topics with the MQTT broker
+func (d *Device) deregister(c MQTT.Client) error {
 	/* Unsubscribe from Device's rawrx Data Stream */
-	token := c.Unsubscribe(d.node.MQTTRoot + "/" + deviceRxData)
+	token := c.Unsubscribe(d.MQTTRoot + "/" + deviceRxData)
 	if token.Wait(); token.Error() != nil {
 		return ErrRegistrationFailed
 	}
-	log.Println("Unsubscribed from", d.node.MQTTRoot+"/"+deviceRxData)
+	log.Println("Unsubscribed from", d.MQTTRoot+"/"+deviceRxData)
 
 	d.isregistered = false
 
 	return nil
 }
 
-// Register sets up all subscriptions with MQTT broker for the device
-func (d *Device) Register(c MQTT.Client) error {
-	if d.isregistered {
-		return ErrDeviceRegistered
-	}
+// register sets up all subscriptions with MQTT broker for the device
+func (d *Device) register(c MQTT.Client) error {
 
 	/* Subscribe to Device's rawrx Data Stream */
-	token := c.Subscribe(d.node.MQTTRoot+"/"+deviceRxData, byte(mqttQos), func(c MQTT.Client, m MQTT.Message) {
+	token := c.Subscribe(d.MQTTRoot+"/"+deviceRxData, byte(mqttQos), func(c MQTT.Client, m MQTT.Message) {
+
+		d.lock.RLock()
+		defer d.lock.RUnlock()
 
 		/* Decode base64 */
 		data, err := base64.StdEncoding.DecodeString(string(m.Payload()))
@@ -221,7 +203,7 @@ func (d *Device) Register(c MQTT.Client) error {
 				continue
 			}
 			/* Publish Data Named Field */
-			topic := d.node.MQTTRoot + "/" + fieldname
+			topic := d.MQTTRoot + "/" + fieldname
 			message := fmt.Sprint(field.Value)
 			c.Publish(topic, byte(mqttQos), false, message)
 			log.Println("Published", string(message), "to", topic)
@@ -231,7 +213,7 @@ func (d *Device) Register(c MQTT.Client) error {
 	if token.Wait(); token.Error() != nil {
 		return ErrRegistrationFailed
 	}
-	log.Println("Subscribed to", d.node.MQTTRoot+"/"+deviceRxData)
+	log.Println("Subscribed to", d.MQTTRoot+"/"+deviceRxData)
 
 	/* Subscribe to all device's TX topics */
 	for _, m := range d.mapping.TxData {
@@ -240,29 +222,32 @@ func (d *Device) Register(c MQTT.Client) error {
 			return err
 		}
 
-		topic := d.node.MQTTRoot + "/" + pm.fname
+		topic := d.MQTTRoot + "/" + pm.fname
 
 		/* Subscribe to Device's txdata streams */
 		token := c.Subscribe(topic, byte(mqttQos), func(c MQTT.Client, m MQTT.Message) {
 
+			d.lock.RLock()
+			defer d.lock.RUnlock()
+
 			fnum, ok := d.GetFieldNum(pm.fname)
 			if !ok {
 				// log error and ignore publication
-				log.Println("Error - Looking up field number for " + pm.fname + " for device " + d.node.ID)
+				log.Println("Error - Looking up field number for " + pm.fname + " for device " + d.ID)
 				return
 			}
 
 			typ, ok := d.fieldMap.Get(dproto.FieldNum(fnum))
 			if !ok {
 				// log error and ignore publication
-				log.Println("Error - Looking up field type for " + pm.fname + " for device " + d.node.ID)
+				log.Println("Error - Looking up field type for " + pm.fname + " for device " + d.ID)
 				return
 			}
 			log.Println()
 			value, err := dproto.ParseAs(string(m.Payload()), typ, 0)
 			if err != nil {
 				// log error and ignore publication
-				log.Println("Error - Parsing published value \""+string(m.Payload())+"\" for "+pm.fname+" for device "+d.node.ID+" as a "+typ.String()+":", err)
+				log.Println("Error - Parsing published value \""+string(m.Payload())+"\" for "+pm.fname+" for device "+d.ID+" as a "+typ.String()+":", err)
 				return
 			}
 			log.Printf("pubbing: %d as field number %d\n", value, dproto.FieldNum(fnum))
@@ -270,23 +255,118 @@ func (d *Device) Register(c MQTT.Client) error {
 			buf, err := d.fieldMap.EncodeBuffer(values)
 			if err != nil {
 				// log error and ignore publication
-				log.Println("Error - Encoding field", pm.fname, "with", string(m.Payload()), "for device", d.node.ID)
+				log.Println("Error - Encoding field", pm.fname, "with", string(m.Payload()), "for device", d.ID)
 				return
 			}
 
 			// convert to base64 for rawtx
 			data := base64.StdEncoding.EncodeToString(buf)
-			c.Publish(d.node.MQTTRoot+"/"+deviceTxData, byte(mqttQos), false, data)
+			c.Publish(d.MQTTRoot+"/"+deviceTxData, byte(mqttQos), false, data)
 			log.Println("Published", data, "to", topic)
 
 		})
 		if token.Wait(); token.Error() != nil {
 			return ErrRegistrationFailed
 		}
-		log.Println("Subscribed to", d.node.MQTTRoot+"/"+pm.fname)
+		log.Println("Subscribed to", d.MQTTRoot+"/"+pm.fname)
 	}
 
 	d.isregistered = true
 
 	return nil
+}
+
+// IsMappingEqual return true is the given ServiceConfig matches
+// the one saved in the device. This is used to check if the device
+// needs to be updated.
+func (d *Device) IsMappingEqual(mapping ServiceConfig) bool {
+	d.lock.RLock()
+	defer d.lock.RUnlock()
+
+	return d.isMappingEqual(mapping)
+}
+
+// SetMapping sets a device's mappings from a service config
+func (d *Device) SetMapping(mapping ServiceConfig) error {
+
+	log.Printf("SetMapping: %v\n", mapping)
+
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
+	if d.isregistered {
+		return ErrDeviceRegistered
+	}
+	return d.setMapping(mapping)
+}
+
+func (d *Device) UpdateMapping(c MQTT.Client, mapping ServiceConfig) error {
+
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
+	if !d.isMappingEqual(mapping) {
+		// if not registered, just update mapping
+		if !d.isregistered {
+			err := d.setMapping(mapping)
+			return err
+		}
+
+		// deregister
+		err := d.deregister(c)
+		if err != nil {
+			return err
+		}
+
+		// change config
+		err = d.setMapping(mapping)
+		if err != nil {
+			return err
+		}
+
+		// re-register
+		err = d.register(c)
+		if err != nil {
+			return err
+		}
+
+	}
+	return nil
+}
+
+// Note: Not thread safe - call inside safe region
+func (d *Device) GetFieldName(num uint32) (string, bool) {
+	name, ok := d.num2name[num]
+	return name, ok
+}
+
+// Note: Not thread safe - call inside safe region
+func (d *Device) GetFieldNum(name string) (uint32, bool) {
+	num, ok := d.name2num[name]
+	return num, ok
+}
+
+// Deregister unsubscribes all device topics with the MQTT broker
+func (d *Device) Deregister(c MQTT.Client) error {
+
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
+	if d.isregistered {
+		return ErrDeviceNotRegistered
+	}
+
+	return d.deregister(c)
+}
+
+// Register sets up all subscriptions with MQTT broker for the device
+func (d *Device) Register(c MQTT.Client) error {
+
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
+	if d.isregistered {
+		return ErrDeviceRegistered
+	}
+	return d.register(c)
 }
