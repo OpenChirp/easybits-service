@@ -12,7 +12,7 @@ import (
 
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
 	"github.com/linux4life798/dproto"
-	"github.com/openchirp/framework"
+	"github.com/openchirp/framework/rest"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 )
@@ -79,7 +79,7 @@ func parseMapping(mapping string) (parsedMapping, error) {
 type Device struct {
 	lock         sync.RWMutex
 	isregistered bool
-	framework.NodeDescriptor
+	rest.NodeDescriptor
 	// node     framework.NodeDescriptor
 	mapping  ServiceConfig // saved to compare for changes later
 	num2name map[uint32]string
@@ -88,7 +88,7 @@ type Device struct {
 }
 
 // NewDevice creates a new initialized Device
-func NewDevice(node framework.NodeDescriptor) *Device {
+func NewDevice(node rest.NodeDescriptor) *Device {
 	return &Device{NodeDescriptor: node}
 }
 
@@ -165,11 +165,28 @@ func (d *Device) deregister(c MQTT.Client) error {
 	}
 
 	/* Unsubscribe from Device's rawrx Data Stream */
-	token := c.Unsubscribe(d.MQTTRoot + "/" + deviceRxData)
+	token := c.Unsubscribe(d.Pubsub.Topic + "/" + deviceRxData)
 	if token.Wait(); token.Error() != nil {
 		return ErrRegistrationFailed
 	}
-	log.Println("Unsubscribed from", d.MQTTRoot+"/"+deviceRxData)
+	log.Println("Unsubscribed from", d.Pubsub.Topic+"/"+deviceRxData)
+
+	/* Unsubscribe to all device's TX topics */
+	for _, m := range d.mapping.TxData {
+		pm, err := parseMapping(m) // last reference to m should be here
+		if err != nil {
+			return err
+		}
+
+		topic := d.Pubsub.Topic + "/transducer/" + pm.fname
+
+		/* Subscribe to Device's txdata streams */
+		token := c.Unsubscribe(topic)
+		if token.Wait(); token.Error() != nil {
+			return ErrRegistrationFailed
+		}
+		log.Println("Unsubscribed to", topic)
+	}
 
 	d.isregistered = false
 
@@ -184,7 +201,7 @@ func (d *Device) register(c MQTT.Client) error {
 	}
 
 	/* Subscribe to Device's rawrx Data Stream */
-	token := c.Subscribe(d.MQTTRoot+"/"+deviceRxData, byte(mqttQos), func(c MQTT.Client, m MQTT.Message) {
+	token := c.Subscribe(d.Pubsub.Topic+"/"+deviceRxData, byte(mqttQos), func(c MQTT.Client, m MQTT.Message) {
 
 		d.lock.RLock()
 		defer d.lock.RUnlock()
@@ -211,7 +228,7 @@ func (d *Device) register(c MQTT.Client) error {
 				continue
 			}
 			/* Publish Data Named Field */
-			topic := d.MQTTRoot + "/" + fieldname
+			topic := d.Pubsub.Topic + "/transducer/" + fieldname
 			message := fmt.Sprint(field.Value)
 			c.Publish(topic, byte(mqttQos), false, message)
 			log.Println("Published", string(message), "to", topic)
@@ -221,7 +238,7 @@ func (d *Device) register(c MQTT.Client) error {
 	if token.Wait(); token.Error() != nil {
 		return ErrRegistrationFailed
 	}
-	log.Println("Subscribed to", d.MQTTRoot+"/"+deviceRxData)
+	log.Println("Subscribed to", d.Pubsub.Topic+"/"+deviceRxData)
 
 	/* Subscribe to all device's TX topics */
 	for _, m := range d.mapping.TxData {
@@ -230,7 +247,7 @@ func (d *Device) register(c MQTT.Client) error {
 			return err
 		}
 
-		topic := d.MQTTRoot + "/" + pm.fname
+		topic := d.Pubsub.Topic + "/transducer/" + pm.fname
 
 		/* Subscribe to Device's txdata streams */
 		token := c.Subscribe(topic, byte(mqttQos), func(c MQTT.Client, m MQTT.Message) {
@@ -267,14 +284,14 @@ func (d *Device) register(c MQTT.Client) error {
 
 			// convert to base64 for rawtx
 			data := base64.StdEncoding.EncodeToString(buf)
-			c.Publish(d.MQTTRoot+"/"+deviceTxData, byte(mqttQos), false, data)
+			c.Publish(d.Pubsub.Topic+"/"+deviceTxData, byte(mqttQos), false, data)
 			log.Println("Published", data, "to", topic)
 
 		})
 		if token.Wait(); token.Error() != nil {
 			return ErrRegistrationFailed
 		}
-		log.Println("Subscribed to", d.MQTTRoot+"/"+pm.fname)
+		log.Println("Subscribed to", topic)
 	}
 
 	d.isregistered = true
