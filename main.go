@@ -27,8 +27,8 @@ import (
 
 /*
 "serviceconfig": {
-	"rxmap": ["temp,sint32,1", "humidity,uint32,2", "light,uint32,3", "pir,uint32,4", "mic,uint32,5", "accX,uint32,6", "accY,uint32,7", "accZ,uint32,8"],
-	"txmap": ["duty,uint32,9"]
+	"rxconfig": ["temp,sint32,1", "humidity,uint32,2", "light,uint32,3", "pir,uint32,4", "mic,uint32,5", "accX,uint32,6", "accY,uint32,7", "accZ,uint32,8"],
+	"txconfig": ["duty,uint32,9"]
 }
 */
 
@@ -262,75 +262,6 @@ func main() {
 
 				devices[fulldev.NodeDescriptor.ID] = d
 			}
-
-		// case <-time.After(time.Duration(refreshTime) * time.Second):
-
-		// 	newdevices := make(map[string]*Device)
-
-		// 	log.Println("Time To Update Configs")
-		// 	/* Get ServiceNode Information */
-		// 	serviceinfo, err = framework.NewHost(frameworkServer).RequestServiceInfo(serviceID)
-		// 	if err != nil {
-		// 		log.Fatalln("Failed to fecth service info from framework server:", err.Error())
-		// 	}
-		// 	log.Println("Sucessfully retrieved ServiceNode information")
-
-		// 	/* Update Device Configs */
-		// 	for _, dev := range serviceinfo.DeviceNodes {
-		// 		var config ServiceConfig
-
-		// 		/* Decode Service Config from DeviceNode */
-		// 		err := json.Unmarshal(dev.ServiceConfig, &config)
-		// 		if err != nil {
-		// 			log.Printf("Error parsing conf for Device %s (%s)", dev.ID, dev.Name)
-		// 			continue // ignore device
-		// 		}
-
-		// 		/* Check if it is an existing device that can be updated */
-		// 		if d, ok := devices[dev.NodeDescriptor.ID]; ok {
-		// 			// simply update and add to newdevices
-		// 			log.Printf("Updating mapping for device %s (%s)", dev.ID, dev.Name)
-		// 			err = d.UpdateMapping(c, config)
-		// 			if err != nil {
-		// 				log.Printf("Error updating Device %s (%s): %v\n", dev.ID, dev.Name, err)
-		// 				continue
-		// 			}
-
-		// 			newdevices[dev.NodeDescriptor.ID] = d
-		// 			delete(devices, dev.NodeDescriptor.ID)
-		// 			continue
-		// 		}
-
-		// 		/* Build a new Device */
-		// 		log.Printf("Adding mapping for device %s (%s)\n", dev.ID, dev.Name)
-		// 		d := NewDevice(dev.NodeDescriptor)
-		// 		err = d.SetMapping(config)
-		// 		if err != nil {
-		// 			log.Printf("Error setting map for Device %s (%s): %v\n", dev.ID, dev.Name, err)
-		// 			continue
-		// 		}
-
-		// 		err = d.Register(c)
-		// 		if err != nil {
-		// 			log.Printf("Error registering Device %s (%s): %v\n", dev.ID, dev.Name, err)
-		// 			continue
-		// 		}
-
-		// 		newdevices[dev.NodeDescriptor.ID] = d
-		// 	}
-
-		// 	/* Deregister and delete old devices */
-		// 	for _, d := range devices {
-		// 		log.Printf("Removing mapping for device %s (%s)\n", d.ID, d.Name)
-		// 		err = d.Deregister(c)
-		// 		if err != nil {
-		// 			log.Printf("Error deregistering Device %s: %v\n", d.ID, err)
-		// 		}
-		// 		delete(devices, d.ID)
-		// 	}
-
-		// 	/* Replace devices with newdevices map */
-		// 	devices = newdevices
 
 		case <-signals:
 			goto shutdown
