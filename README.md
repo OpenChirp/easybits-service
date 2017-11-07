@@ -1,6 +1,16 @@
 # Description
 This project houses the MIO serialization service and end point device serialization library.
 
+# Data Types
+Easybits recognizes all primitive protobuf types. Here is a complete list:
+* int32, int64
+* uint32, uint64
+* sint32, sint64
+* fixed32, fixed64
+* sfixed32, sfixed64
+* float, double
+* bool, string, bytes
+
 # Protocol Choice
 
 Using a custom serialization library has the benefit that the code size could be extremely small.
