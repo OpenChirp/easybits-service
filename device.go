@@ -233,7 +233,14 @@ func (d *Device) register(c pubsub.PubSub) error {
 			}
 			/* Publish Data Named Field */
 			topic := d.Pubsub.Topic + "/transducer/" + fieldname
-			message := fmt.Sprint(field.Value)
+			message := ""
+			if bytes, ok := field.Value.([]byte); ok {
+				// Convert to base64 for publishing
+				message = base64.StdEncoding.EncodeToString(bytes)
+			} else {
+				message = fmt.Sprint(field.Value)
+			}
+
 			c.Publish(topic, message)
 			logi.Debug("Published ", string(message), "to", topic)
 		}
