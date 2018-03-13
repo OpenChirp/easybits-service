@@ -1,5 +1,5 @@
 # Description
-This project houses the MIO serialization service and end point device serialization library.
+This project houses the Protobuf serialization service
 
 # Data Types
 Easybits recognizes all primitive protobuf types. Here is a complete list:
@@ -38,6 +38,8 @@ The second major hurdle with using Protobuf is how to dynamically parse messages
 * Although I do like the name HappyBitz because it makes me think of Happy Feet, it would probably
   make more sense to be called EasyBits.
 
-# Directories
-- service
-- device
+# Development Notes
+This service always makes an additional REST request to fetch device information
+upon receiving a new device to link.
+* It uses the device's pubsub topic.
+* It assumes `/transducer` device subtopic prefix
