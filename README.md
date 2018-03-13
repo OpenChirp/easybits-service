@@ -43,3 +43,5 @@ This service always makes an additional REST request to fetch device information
 upon receiving a new device to link.
 * It uses the device's pubsub topic.
 * It assumes `/transducer` device subtopic prefix
+This second call could now be eliminated, since pubsub info is now sent with
+device events.
