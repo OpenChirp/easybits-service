@@ -33,22 +33,22 @@
 			"revisionTime": "2017-11-07T03:02:29Z"
 		},
 		{
-			"checksumSHA1": "MqWreTqa8QYLvsPbtISuziPL5bQ=",
+			"checksumSHA1": "IesX9bTXvGj3SBz2tlgBXaYVQ60=",
 			"path": "github.com/openchirp/framework",
-			"revision": "34d08a76a35c8276bbf55eced642bcc42ac2b814",
-			"revisionTime": "2017-11-03T20:41:43Z"
+			"revision": "9e242671b27174225f08ef424752c9d7bc098177",
+			"revisionTime": "2018-03-13T22:09:56Z"
 		},
 		{
 			"checksumSHA1": "pcflGy0cl0T0E21TK94eBnWDADM=",
 			"path": "github.com/openchirp/framework/pubsub",
-			"revision": "34d08a76a35c8276bbf55eced642bcc42ac2b814",
-			"revisionTime": "2017-11-03T20:41:43Z"
+			"revision": "9e242671b27174225f08ef424752c9d7bc098177",
+			"revisionTime": "2018-03-13T22:09:56Z"
 		},
 		{
-			"checksumSHA1": "YtMZfqy81IsR/KhupUu5qM/hGWk=",
+			"checksumSHA1": "nVtump/daJuub+r8NQQ3d9ZUXXw=",
 			"path": "github.com/openchirp/framework/rest",
-			"revision": "34d08a76a35c8276bbf55eced642bcc42ac2b814",
-			"revisionTime": "2017-11-03T20:41:43Z"
+			"revision": "9e242671b27174225f08ef424752c9d7bc098177",
+			"revisionTime": "2018-03-13T22:09:56Z"
 		},
 		{
 			"checksumSHA1": "BYvROBsiyAXK4sq6yhDe8RgT4LM=",

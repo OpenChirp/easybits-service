@@ -11,9 +11,6 @@ import (
 )
 
 const (
-	eventsSubTopic         = "/thing/events"
-	deviceStatusSubTopic   = "/status"
-	statusSubTopic         = "/status"
 	deviceUpdatesBuffering = 10
 	mqttPersistence        = false // we should never have this enabled
 )
@@ -65,6 +62,7 @@ func (dut DeviceUpdateType) String() (s string) {
 type DeviceUpdate struct {
 	Type   DeviceUpdateType
 	Id     string
+	Topic  string
 	Config map[string]string
 }
 
@@ -91,16 +89,25 @@ type ServiceClient struct {
 	updatesRunning bool
 	updatesQueue   chan DeviceUpdate
 	updates        chan DeviceUpdate
+	manager        serviceRuntimeManager
+}
+
+type serviceRuntimeManager interface {
+	Stop()
 }
 
 /*
 News Updates Look Like The Following:
-openchirp/services/592880c57d6ec25f901d9668/thing/events:
+openchirp/service/592880c57d6ec25f901d9668/thing/events:
 {
 	"action":"new",
 	"thing":{
 		"type":"device",
 		"id":"5930aaf27d6ec25f901d96da",
+		"pubsub": {
+			"protocol": "MQTT",
+			"endpoint": openchirp/device/592880c57d6ec25f901d9668"
+		},
 		"config":[
 			{"key":"rxconfig","value":"[]"},
 			{"key":"txconfig","value":"[]"}]
@@ -108,6 +115,8 @@ openchirp/services/592880c57d6ec25f901d9668/thing/events:
 }
 */
 
+// serviceUpdatesEncapsulation describes the JSON blob provided to services over
+// MQTT as a device update event.
 type serviceUpdatesEncapsulation struct {
 	Action string                     `json:"action"`
 	Device rest.ServiceDeviceListItem `json:"thing"`
@@ -158,7 +167,7 @@ func StartServiceClientStatus(frameworkuri, brokeruri, id, token, statusmsg stri
 		if err != nil {
 			return nil, ErrMarshalStatusMessage
 		}
-		c.setWill(c.node.Pubsub.Topic+statusSubTopic, []byte(payload))
+		c.setWill(c.node.Pubsub.TopicStatus, []byte(payload))
 	}
 
 	// Start MQTT
@@ -172,6 +181,9 @@ func StartServiceClientStatus(frameworkuri, brokeruri, id, token, statusmsg stri
 
 // StopClient shuts down a started service
 func (c *ServiceClient) StopClient() {
+	if c.manager != nil {
+		c.manager.Stop()
+	}
 	c.stopClient()
 }
 
@@ -183,7 +195,7 @@ func (c *ServiceClient) SetStatus(msgs ...interface{}) error {
 	if err != nil {
 		return ErrMarshalStatusMessage
 	}
-	return c.Publish(c.node.Pubsub.Topic+statusSubTopic, payload)
+	return c.Publish(c.node.Pubsub.TopicStatus, payload)
 }
 
 // SetDeviceStatus publishes a device's linked service status message
@@ -195,7 +207,7 @@ func (c *ServiceClient) SetDeviceStatus(id string, msgs ...interface{}) error {
 	if err != nil {
 		return ErrMarshalDeviceStatusMessage
 	}
-	return c.Publish(c.node.Pubsub.Topic+deviceStatusSubTopic, payload)
+	return c.Publish(c.node.Pubsub.TopicStatus, payload)
 }
 
 func (c *ServiceClient) updateEventsHandler() func(topic string, payload []byte) {
@@ -225,6 +237,7 @@ func (c *ServiceClient) updateEventsHandler() func(topic string, payload []byte)
 				devUpdate.Type = DeviceUpdateTypeRem
 			}
 			devUpdate.Id = mqttMsg.Device.Id
+			devUpdate.Topic = mqttMsg.Device.PubSub.Topic
 			devUpdate.Config = mqttMsg.Device.GetConfigMap()
 
 			c.updatesQueue <- devUpdate
@@ -234,7 +247,7 @@ func (c *ServiceClient) updateEventsHandler() func(topic string, payload []byte)
 
 func (c *ServiceClient) startDeviceUpdatesQueue() error {
 	/* Setup MQTT based device updates to feed updatesQueue */
-	topicEvents := c.node.Pubsub.Topic + eventsSubTopic
+	topicEvents := c.node.Pubsub.TopicEvents
 	if c.updatesRunning {
 		return ErrDeviceUpdatesAlreadyStarted
 	}
@@ -249,7 +262,7 @@ func (c *ServiceClient) startDeviceUpdatesQueue() error {
 }
 
 func (c *ServiceClient) stopDeviceUpdatesQueue() error {
-	topicEvents := c.node.Pubsub.Topic + eventsSubTopic
+	topicEvents := c.node.Pubsub.TopicEvents
 	if c.updatesRunning {
 		return ErrDeviceUpdatesNotStarted
 	}
@@ -334,7 +347,7 @@ func (c *ServiceClient) StartDeviceUpdates() (<-chan DeviceUpdate, error) {
 // StopDeviceUpdates unsubscribes from service news topic and closes the
 // news channel
 func (c *ServiceClient) StopDeviceUpdates() {
-	topicEvents := c.node.Pubsub.Topic + eventsSubTopic
+	topicEvents := c.node.Pubsub.TopicEvents
 	c.Unsubscribe(topicEvents)
 	close(c.updatesQueue)
 	for _ = range c.updates {
@@ -363,6 +376,7 @@ func (c *ServiceClient) FetchDeviceConfigsAsUpdates() ([]DeviceUpdate, error) {
 		updates[i] = DeviceUpdate{
 			Type:   DeviceUpdateTypeAdd,
 			Id:     devConfig.Id,
+			Topic:  devConfig.PubSub.Topic,
 			Config: devConfig.GetConfigMap(),
 		}
 	}
