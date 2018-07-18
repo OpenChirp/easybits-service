@@ -1,1 +1,0 @@
-Protobuf project is in ~/Dropbox/OC/src/nanopb/examples/dprototest

@@ -5,7 +5,6 @@ REST Interface: [![Godoc](https://godoc.org/github.com/OpenChirp/framework/rest?
 [![Go Report Card](https://goreportcard.com/badge/github.com/openchirp/framework/rest)](https://goreportcard.com/report/github.com/openchirp/framework/rest)
 
 PubSub Interface: [![Godoc](https://godoc.org/github.com/OpenChirp/framework/pubsub?status.png)](https://godoc.org/github.com/OpenChirp/framework/pubsub)
-[![Go Report Card](https://goreportcard.com/badge/github.com/openchirp/framework/pubsub)](https://goreportcard.com/report/github.com/openchirp/framework/pubsub)
 
 # Description
 This is the Golang [User](user.go), [Device](device.go), and [Service](service.go) client library for the OpenChirp framework.
@@ -25,3 +24,9 @@ The pure http rest interface is exposed as the Golang [rest](rest) package.
 
 ## PubSub
 The pure pubsub(MQTT) interface is exposed as the Golang [pubsub](pubsub) package.
+
+## Utilities
+The [utils](utils) package holds functions and data structures commonly used
+across applications interfacing with OpenChirp.
+
+[![Godoc](https://godoc.org/github.com/OpenChirp/framework/utils?status.png)](https://godoc.org/github.com/OpenChirp/framework/utils)
