@@ -44,8 +44,8 @@ type ServiceConfig struct {
 }
 
 const (
-	deviceRxData  = "transducer/rawrx"
-	deviceTxData  = "transducer/rawtx"
+	deviceRxData  = "rawrx"
+	deviceTxData  = "rawtx"
 	rxConfigLabel = "rxconfig"
 	txConfigLabel = "txconfig"
 )

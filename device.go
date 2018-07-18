@@ -178,7 +178,7 @@ func (d *Device) deregister(c pubsub.PubSub) error {
 			return err
 		}
 
-		topic := d.Pubsub.Topic + "/transducer/" + pm.fname
+		topic := d.Pubsub.Topic + "/" + pm.fname
 
 		/* Subscribe to Device's txdata streams */
 		err = c.Unsubscribe(topic)
@@ -213,7 +213,7 @@ func (d *Device) register(c pubsub.PubSub) error {
 		if err != nil {
 			// log error and proceed to next packet
 			logi.Warn("Error - Decoding base64:", err)
-			c.Publish(d.Pubsub.Topic+"/transducer/"+"easybits", "Failed to decode rawrx base64")
+			c.Publish(d.Pubsub.Topic+"/easybits", "Failed to decode rawrx base64")
 			return
 		}
 
@@ -221,7 +221,7 @@ func (d *Device) register(c pubsub.PubSub) error {
 		fields, err := d.fieldMap.DecodeBuffer(data)
 		if err != nil {
 			logi.Warn("Error while decoding rx buffer")
-			c.Publish(d.Pubsub.Topic+"/transducer/"+"easybits", "Error while decoding rawrx protobuf data")
+			c.Publish(d.Pubsub.Topic+"/easybits", "Error while decoding rawrx protobuf data")
 		}
 
 		for _, field := range fields {
@@ -232,7 +232,7 @@ func (d *Device) register(c pubsub.PubSub) error {
 				continue
 			}
 			/* Publish Data Named Field */
-			topic := d.Pubsub.Topic + "/transducer/" + fieldname
+			topic := d.Pubsub.Topic + "/" + fieldname
 			message := ""
 			if bytes, ok := field.Value.([]byte); ok {
 				// Convert to base64 for publishing
@@ -258,7 +258,7 @@ func (d *Device) register(c pubsub.PubSub) error {
 			return err
 		}
 
-		topic := d.Pubsub.Topic + "/transducer/" + pm.fname
+		topic := d.Pubsub.Topic + "/" + pm.fname
 
 		/* Subscribe to Device's txdata streams */
 		err = c.Subscribe(topic, func(topic string, payload []byte) {
