@@ -234,9 +234,9 @@ cleanup:
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "example-service"
+	app.Name = "easybits-service"
 	app.Usage = ""
-	app.Copyright = "See https://github.com/openchirp/example-service for copyright information"
+	app.Copyright = "See https://github.com/openchirp/easybits-service for copyright information"
 	app.Version = version
 	app.Action = run
 	app.Flags = []cli.Flag{
