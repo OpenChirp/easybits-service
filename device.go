@@ -242,7 +242,7 @@ func (d *Device) register(c pubsub.PubSub) error {
 			}
 
 			c.Publish(topic, message)
-			logi.Debug("Published ", string(message), "to", topic)
+			logi.Debug("Published ", string(message), " to ", topic)
 		}
 
 	})
@@ -298,7 +298,7 @@ func (d *Device) register(c pubsub.PubSub) error {
 			// convert to base64 for rawtx
 			data := base64.StdEncoding.EncodeToString(buf)
 			c.Publish(d.Pubsub.Topic+"/"+deviceTxData, data)
-			logitem.Debug("Published ", data, "to", topic)
+			logitem.Debug("Published ", data, " to ", topic)
 
 		})
 		if err != nil {
