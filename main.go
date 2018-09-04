@@ -6,12 +6,13 @@
 package main
 
 import (
-	"encoding/json"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/openchirp/framework"
+	"github.com/openchirp/framework/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -31,6 +32,13 @@ const (
 )
 
 /*
+"serviceconfig": {
+	"rxconfig": "\"temp,sint32,1\", \"humidity,uint32,2\", \"light,uint32,3\", \"pir,uint32,4\", \"mic,uint32,5\", \"accX,uint32,6\", \"accY,uint32,7\", \"accZ,uint32,8\"",
+	"txconfig": "\"duty,uint32,9\""
+}
+
+OR
+
 "serviceconfig": {
 	"rxconfig": ["temp,sint32,1", "humidity,uint32,2", "light,uint32,3", "pir,uint32,4", "mic,uint32,5", "accX,uint32,6", "accY,uint32,7", "accZ,uint32,8"],
 	"txconfig": ["duty,uint32,9"]
@@ -165,22 +173,25 @@ func run(ctx *cli.Context) error {
 				rx := update.Config[rxConfigLabel]
 				if rx == "" {
 					logitem.Warnf("Device %s did not specify an %s", update.Id, rxConfigLabel)
-					rx = "[]"
 				}
 				tx := update.Config[txConfigLabel]
 				if tx == "" {
 					logitem.Warnf("Device %s did not specify an %s", update.Id, txConfigLabel)
-					tx = "[]"
 				}
 
-				/* Parse rx and tx configs as JSON string arrays */
-				err := json.Unmarshal([]byte(rx), &config.RxData)
+				/* For compatibility, allow configs to be encased in [] and whitespace */
+				const cutset = " \t\n[]"
+				rx = strings.Trim(rx, cutset)
+				tx = strings.Trim(tx, cutset)
+
+				/* Parse rxconfig and txconfig */
+				config.RxData, err = utils.ParseCSVConfig(rx)
 				if err != nil {
 					logitem.Warnf("Error parsing %s for device with ID %s", rxConfigLabel, update.Id)
 					c.SetDeviceStatus(update.Id, "Failed to parse "+rxConfigLabel+" as JSON string array")
 					continue // ignore device
 				}
-				err = json.Unmarshal([]byte(tx), &config.TxData)
+				config.TxData, err = utils.ParseCSVConfig(tx)
 				if err != nil {
 					logitem.Warnf("Error parsing %s for device with ID %s", txConfigLabel, update.Id)
 					c.SetDeviceStatus(update.Id, "Failed to parse "+txConfigLabel+" as JSON string array")

@@ -11,6 +11,32 @@ Easybits recognizes all primitive protobuf types. Here is a complete list:
 * float, double
 * bool, string, bytes
 
+# Device's Service Config
+
+| Key        | Required | Description | Example |
+| ---------- | -------- | ----------- | ------- |
+| `rxconfig` | Optional | Field descriptor to transducer mapping for deserialization | "temperature,sint32,1", "humidity,uint32,2", "pressure,int32,3" |
+| `txconfig` | Optional | Transducer to field descriptor mapping for serialization | "report_duty,uint32,4" |
+
+The elements are composed of `"<trandsucer_name>,<protobuf_type>,<protobuf_field_number>"`.
+
+## Protobuf Example
+
+The above example would describe the following `.proto` file description:
+
+```protobuf
+syntax = "proto2";
+
+message ENVMessage {
+	optional sint32 temperature = 1;
+	optional uint32 humidity    = 2;
+	optional int32  pressure    = 3;
+
+	optional uint32 duty        = 4;
+}
+
+```
+
 # Protocol Choice
 
 Using a custom serialization library has the benefit that the code size could be extremely small.
