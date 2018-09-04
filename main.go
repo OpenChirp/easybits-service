@@ -93,7 +93,7 @@ func run(ctx *cli.Context) error {
 	log.Info("Published Service Status")
 
 	/* Setup master table of registered devices */
-	var devices map[string]*Device = make(map[string]*Device)
+	var devices = make(map[string]*Device)
 
 	/* Start service main device updates stream */
 	log.Info("Starting Device Updates Stream")

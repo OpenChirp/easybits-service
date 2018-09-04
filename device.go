@@ -26,6 +26,8 @@ var ErrDeviceNotRegistered = errors.New("Error the device is not currently regis
 // ErrParseMapping is emitted when there was an error parsing the mapper config
 var ErrParseMapping = errors.New("Error parsing mapper config")
 
+// ErrRegistrationFailed indicates that some error was emitted during
+// registration or deregistration that would not allow further processing
 var ErrRegistrationFailed = errors.New("Error registration or deregistration failed")
 
 const mappingSeparator = ","
@@ -334,6 +336,7 @@ func (d *Device) SetMapping(mapping ServiceConfig) error {
 	return d.setMapping(mapping)
 }
 
+// UpdateMapping attempts to update the device's mapping to use a new config
 func (d *Device) UpdateMapping(c pubsub.PubSub, mapping ServiceConfig) error {
 	logitem := log.WithField("deviceid", d.ID)
 
@@ -371,12 +374,18 @@ func (d *Device) UpdateMapping(c pubsub.PubSub, mapping ServiceConfig) error {
 	return nil
 }
 
+// GetRXFieldName returns the name of proto field that corresponds to the rx
+// field num
+//
 // Note: Not thread safe - call inside safe region
 func (d *Device) GetRXFieldName(num uint32) (string, bool) {
 	name, ok := d.rxNum2Name[num]
 	return name, ok
 }
 
+// GetTXFieldNum returns the name of proto field that corresponds to tx field
+// name
+//
 // Note: Not thread safe - call inside safe region
 func (d *Device) GetTXFieldNum(name string) (uint32, bool) {
 	num, ok := d.txName2Num[name]
