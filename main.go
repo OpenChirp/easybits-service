@@ -188,13 +188,13 @@ func run(ctx *cli.Context) error {
 				config.RxData, err = utils.ParseCSVConfig(rx)
 				if err != nil {
 					logitem.Warnf("Error parsing %s for device with ID %s", rxConfigLabel, update.Id)
-					c.SetDeviceStatus(update.Id, "Failed to parse "+rxConfigLabel+" as JSON string array")
+					c.SetDeviceStatus(update.Id, "Failed to parse "+rxConfigLabel+" as CSV")
 					continue // ignore device
 				}
 				config.TxData, err = utils.ParseCSVConfig(tx)
 				if err != nil {
 					logitem.Warnf("Error parsing %s for device with ID %s", txConfigLabel, update.Id)
-					c.SetDeviceStatus(update.Id, "Failed to parse "+txConfigLabel+" as JSON string array")
+					c.SetDeviceStatus(update.Id, "Failed to parse "+txConfigLabel+" as CSV")
 					continue // ignore device
 				}
 
