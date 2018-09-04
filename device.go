@@ -79,10 +79,11 @@ type Device struct {
 	isregistered bool
 	rest.NodeDescriptor
 	// node     framework.NodeDescriptor
-	mapping  ServiceConfig // saved to compare for changes later
-	num2name map[uint32]string
-	name2num map[string]uint32
-	fieldMap *dproto.ProtoFieldMap
+	mapping    ServiceConfig // saved to compare for changes later
+	rxNum2Name map[uint32]string
+	txName2Num map[string]uint32
+	rxFieldMap *dproto.ProtoFieldMap
+	txFieldMap *dproto.ProtoFieldMap
 }
 
 // NewDevice creates a new initialized Device
@@ -126,9 +127,10 @@ func (d *Device) setMapping(mapping ServiceConfig) error {
 	copy(d.mapping.RxData, mapping.RxData)
 	copy(d.mapping.TxData, mapping.TxData)
 
-	d.num2name = make(map[uint32]string, len(mapping.RxData)+len(mapping.TxData))
-	d.name2num = make(map[string]uint32, len(mapping.RxData)+len(mapping.TxData))
-	d.fieldMap = dproto.NewProtoFieldMap()
+	d.rxNum2Name = make(map[uint32]string, len(mapping.RxData))
+	d.txName2Num = make(map[string]uint32, len(mapping.TxData))
+	d.rxFieldMap = dproto.NewProtoFieldMap()
+	d.txFieldMap = dproto.NewProtoFieldMap()
 
 	// Add all associations
 	for _, m := range d.mapping.RxData {
@@ -137,10 +139,9 @@ func (d *Device) setMapping(mapping ServiceConfig) error {
 			return err
 		}
 
-		/* Add the association  */
-		d.num2name[pm.fnum] = pm.fname
-		d.name2num[pm.fname] = pm.fnum
-		d.fieldMap.Add(dproto.FieldNum(pm.fnum), pm.ftype)
+		/* Add the association */
+		d.rxNum2Name[pm.fnum] = pm.fname
+		d.rxFieldMap.Add(dproto.FieldNum(pm.fnum), pm.ftype)
 	}
 	for _, m := range d.mapping.TxData {
 		pm, err := parseMapping(m)
@@ -148,10 +149,9 @@ func (d *Device) setMapping(mapping ServiceConfig) error {
 			return err
 		}
 
-		/* Add the association  */
-		d.num2name[pm.fnum] = pm.fname
-		d.name2num[pm.fname] = pm.fnum
-		d.fieldMap.Add(dproto.FieldNum(pm.fnum), pm.ftype)
+		/* Add the association */
+		d.txName2Num[pm.fname] = pm.fnum
+		d.txFieldMap.Add(dproto.FieldNum(pm.fnum), pm.ftype)
 	}
 	return nil
 }
@@ -171,7 +171,7 @@ func (d *Device) deregister(c pubsub.PubSub) error {
 	}
 	logitem.Debug("Unsubscribed from ", d.Pubsub.Topic+"/"+deviceRxData)
 
-	/* Unsubscribe to all device's TX topics */
+	/* Unsubscribe from all device's TX topics */
 	for _, m := range d.mapping.TxData {
 		pm, err := parseMapping(m) // last reference to m should be here
 		if err != nil {
@@ -179,8 +179,6 @@ func (d *Device) deregister(c pubsub.PubSub) error {
 		}
 
 		topic := d.Pubsub.Topic + "/" + pm.fname
-
-		/* Subscribe to Device's txdata streams */
 		err = c.Unsubscribe(topic)
 		if err != nil {
 			return ErrRegistrationFailed
@@ -218,7 +216,7 @@ func (d *Device) register(c pubsub.PubSub) error {
 		}
 
 		/* Decode Protobuf */
-		fields, err := d.fieldMap.DecodeBuffer(data)
+		fields, err := d.rxFieldMap.DecodeBuffer(data)
 		if err != nil {
 			logi.Warn("Error while decoding rx buffer")
 			c.Publish(d.Pubsub.Topic+"/easybits", "Error while decoding rawrx protobuf data")
@@ -226,7 +224,7 @@ func (d *Device) register(c pubsub.PubSub) error {
 
 		for _, field := range fields {
 			/* Resolve Field Mapping */
-			fieldname, ok := d.GetFieldName(uint32(field.Field))
+			fieldname, ok := d.GetRXFieldName(uint32(field.Field))
 			if !ok {
 				// if no name specified, just ignore it
 				continue
@@ -268,14 +266,14 @@ func (d *Device) register(c pubsub.PubSub) error {
 
 			logi := log.WithField("deviceid", d.ID)
 
-			fnum, ok := d.GetFieldNum(pm.fname)
+			fnum, ok := d.GetTXFieldNum(pm.fname)
 			if !ok {
 				// log error and ignore publication
 				logi.Warnf("Error - Looking up field number for " + pm.fname + " for device " + d.ID)
 				return
 			}
 
-			typ, ok := d.fieldMap.Get(dproto.FieldNum(fnum))
+			typ, ok := d.txFieldMap.Get(dproto.FieldNum(fnum))
 			if !ok {
 				// log error and ignore publication
 				logi.Warnf("Error - Looking up field type for " + pm.fname + " for device " + d.ID)
@@ -288,7 +286,7 @@ func (d *Device) register(c pubsub.PubSub) error {
 				return
 			}
 			values := []dproto.FieldValue{dproto.FieldValue{Field: dproto.FieldNum(fnum), Value: value}}
-			buf, err := d.fieldMap.EncodeBuffer(values)
+			buf, err := d.txFieldMap.EncodeBuffer(values)
 			if err != nil {
 				// log error and ignore publication
 				logi.Warnf("Error - Encoding field", pm.fname, "with", string(payload), "for device", d.ID)
@@ -298,7 +296,7 @@ func (d *Device) register(c pubsub.PubSub) error {
 			// convert to base64 for rawtx
 			data := base64.StdEncoding.EncodeToString(buf)
 			c.Publish(d.Pubsub.Topic+"/"+deviceTxData, data)
-			logitem.Debug("Published ", data, " to ", topic)
+			logitem.Debug("Published ", data, " to ", d.Pubsub.Topic+"/"+deviceTxData, " as a result of ", topic)
 
 		})
 		if err != nil {
@@ -374,14 +372,14 @@ func (d *Device) UpdateMapping(c pubsub.PubSub, mapping ServiceConfig) error {
 }
 
 // Note: Not thread safe - call inside safe region
-func (d *Device) GetFieldName(num uint32) (string, bool) {
-	name, ok := d.num2name[num]
+func (d *Device) GetRXFieldName(num uint32) (string, bool) {
+	name, ok := d.rxNum2Name[num]
 	return name, ok
 }
 
 // Note: Not thread safe - call inside safe region
-func (d *Device) GetFieldNum(name string) (uint32, bool) {
-	num, ok := d.name2num[name]
+func (d *Device) GetTXFieldNum(name string) (uint32, bool) {
+	num, ok := d.txName2Num[name]
 	return num, ok
 }
 
