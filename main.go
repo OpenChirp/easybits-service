@@ -58,12 +58,6 @@ const (
 	txConfigLabel = "txconfig"
 )
 
-const (
-	defaultFrameworkServer = "http://localhost"
-	defaultServiceID       = ""
-	defaultRefreshTime     = 10 // seconds
-)
-
 func run(ctx *cli.Context) error {
 	/* Set logging level */
 	log.SetLevel(log.Level(uint32(ctx.Int("log-level"))))
@@ -260,7 +254,7 @@ func main() {
 		cli.StringFlag{
 			Name:   "mqtt-server",
 			Usage:  "MQTT server's URI (e.g. scheme://host:port where scheme is tcp or tls)",
-			Value:  "tls://localhost:1883",
+			Value:  "tcp://localhost:1883",
 			EnvVar: "MQTT_SERVER",
 		},
 		cli.StringFlag{
