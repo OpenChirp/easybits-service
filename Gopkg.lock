@@ -2,14 +2,15 @@
 
 
 [[projects]]
-  digest = "1:409266df3d93615b78c1d05ff7131882782756cb44442acface446c4063d45db"
+  digest = "1:184008c955d6a3226b700c13ed0e875a7a051a759618f9bccba9b5c99f17faa5"
   name = "github.com/eclipse/paho.mqtt.golang"
   packages = [
     ".",
     "packets",
   ]
   pruneopts = "UT"
-  revision = "13afcbe8e41508479762a90e9242577210c2ca8d"
+  revision = "36d01c2b4cbeb3d2a12063e4880ce30800af9560"
+  version = "v1.1.1"
 
 [[projects]]
   branch = "master"
@@ -17,75 +18,94 @@
   name = "github.com/golang/groupcache"
   packages = ["lru"]
   pruneopts = "UT"
-  revision = "24b0969c4cb722950103eed87108c8d291a8df00"
+  revision = "6f2cf27854a4a29e3811b0371547be335d411b8b"
 
 [[projects]]
-  digest = "1:b4bc4f5d64ac265334eb14d6da250755107eb6aba9cc46371bfa6eb98b559af7"
+  digest = "1:4ee2c939f1ee5983ec75069bc51604a64657b37bc03adeccee8b60abecfe76cc"
   name = "github.com/golang/protobuf"
   packages = [
     "proto",
     "protoc-gen-go/descriptor",
   ]
   pruneopts = "UT"
-  revision = "7a211bcf3bce0e3f1d74f9894916e6f116ae83b4"
+  revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
+  version = "v1.2.0"
 
 [[projects]]
   branch = "master"
-  digest = "1:c5dcc68d235fb801abc4fde2075d97a1d24a49f04ecf4217c4a843f34e7c635a"
+  digest = "1:f44d34fda864bed6d6c71514cd40b2ee097e6e67f745d5d014113e1faa5af8b7"
+  name = "github.com/konsorten/go-windows-terminal-sequences"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "b729f2633dfe35f4d1d8a32385f6685610ce1cb5"
+
+[[projects]]
+  branch = "master"
+  digest = "1:c94f3f554f299c161da0c6cc7fb0ef8c6bcadbc00788bd82b47ea3390e4dabf5"
   name = "github.com/linux4life798/dproto"
   packages = ["."]
   pruneopts = "UT"
-  revision = "b1ef270706d7882bf19e787e43f01aefcd62310b"
+  revision = "cc43ba310bbc8d9c86be02eb3e2047b5a790a293"
 
 [[projects]]
-  digest = "1:a21994cf2bcc363647f7e7486826209d3956652f1a383dbfe951568661e9923e"
+  digest = "1:f8022a94f22d21b8746dfee85b0f4d3aec2e169f5514ea3596d6a28839489cd8"
   name = "github.com/openchirp/framework"
   packages = [
     ".",
     "pubsub",
     "rest",
+    "utils",
   ]
   pruneopts = "UT"
   revision = "59b32f17b56d1d5a6f945e2b162f86337eda2cb8"
   version = "v1.0"
 
 [[projects]]
-  digest = "1:fb011abd58a582cf867409273f372fc6437eda670ff02055c47e6203e90466d7"
+  digest = "1:dc2d85c13ac22c22a1f3170a41a8e1b897fa05134aaf533f16df44f66a25b4a1"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
   pruneopts = "UT"
-  revision = "89742aefa4b206dcf400792f3bd35b542998eb3b"
+  revision = "a67f783a3814b8729bd2dac5780b5f78f8dbd64d"
+  version = "v1.1.0"
 
 [[projects]]
-  digest = "1:8080e1aba103c6ed33937dfdfbaebb3438721ee58a4bf8bb9d2a1ffa0f5d25f6"
+  digest = "1:b24d38b282bacf9791408a080f606370efa3d364e4b5fd9ba0f7b87786d3b679"
   name = "github.com/urfave/cli"
   packages = ["."]
   pruneopts = "UT"
-  revision = "f017f86fccc5a039a98f23311f34fdf78b014f78"
+  revision = "cfb38830724cc34fedffe9a2a29fb54fa9169cd1"
+  version = "v1.20.0"
 
 [[projects]]
-  digest = "1:624a05c7c6ed502bf77364cd3d54631383dafc169982fddd8ee77b53c3d9cccf"
+  branch = "master"
+  digest = "1:3f3a05ae0b95893d90b9b3b5afdb79a9b3d96e4e36e099d841ae602e4aca0da8"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
   pruneopts = "UT"
-  revision = "81e90905daefcd6fd217b62423c0908922eadb30"
+  revision = "e3636079e1a4c1f337f212cc5cd2aca108f6c900"
 
 [[projects]]
-  digest = "1:845c2878ddaa174523d1e096d61e0ebb349855d81dde54e6dbc2c3dbf431b68a"
+  branch = "master"
+  digest = "1:50095e42352dba1c6ab2cec7e03b24fb4b513123f41d4ab4dbd2627c25fe18b8"
   name = "golang.org/x/net"
-  packages = ["websocket"]
+  packages = [
+    "internal/socks",
+    "proxy",
+    "websocket",
+  ]
   pruneopts = "UT"
-  revision = "5b58a9c3e1690d33a592e5b791638e25eb9b3f70"
+  revision = "4dfa2610cdf3b287375bbba5b8f2a14d3b01d8de"
 
 [[projects]]
-  digest = "1:008a7d1322149506162a0562226c5c35f53ac012e124b179eea1657d92a54439"
+  branch = "master"
+  digest = "1:6f82ed211591ecb407897ca46ff6149d618223088aecad72675804f106033629"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "9aade4d3a3b7e6d876cd3823ad20ec45fc035402"
+  revision = "e4b3c5e9061176387e7cea65e4dc5853801f3fb7"
 
 [solve-meta]
   analyzer-name = "dep"
@@ -96,6 +116,7 @@
     "github.com/openchirp/framework",
     "github.com/openchirp/framework/pubsub",
     "github.com/openchirp/framework/rest",
+    "github.com/openchirp/framework/utils",
     "github.com/sirupsen/logrus",
     "github.com/urfave/cli",
   ]
