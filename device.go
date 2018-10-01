@@ -271,27 +271,27 @@ func (d *Device) register(c pubsub.PubSub) error {
 			fnum, ok := d.GetTXFieldNum(pm.fname)
 			if !ok {
 				// log error and ignore publication
-				logi.Warnf("Error - Looking up field number for " + pm.fname + " for device " + d.ID)
+				logi.Warn("Error - Looking up field number for " + pm.fname + " for device " + d.ID)
 				return
 			}
 
 			typ, ok := d.txFieldMap.Get(dproto.FieldNum(fnum))
 			if !ok {
 				// log error and ignore publication
-				logi.Warnf("Error - Looking up field type for " + pm.fname + " for device " + d.ID)
+				logi.Warn("Error - Looking up field type for " + pm.fname + " for device " + d.ID)
 				return
 			}
 			value, err := dproto.ParseAs(string(payload), typ, 0)
 			if err != nil {
 				// log error and ignore publication
-				logi.Warnf("Error - Parsing published value \""+string(payload)+"\" for "+pm.fname+" for device "+d.ID+" as a "+typ.String()+":", err)
+				logi.Warn("Error - Parsing published value \""+string(payload)+"\" for "+pm.fname+" for device "+d.ID+" as a "+typ.String()+":", err)
 				return
 			}
 			values := []dproto.FieldValue{dproto.FieldValue{Field: dproto.FieldNum(fnum), Value: value}}
 			buf, err := d.txFieldMap.EncodeBuffer(values)
 			if err != nil {
 				// log error and ignore publication
-				logi.Warnf("Error - Encoding field", pm.fname, "with", string(payload), "for device", d.ID)
+				logi.Warn("Error - Encoding field", pm.fname, "with", string(payload), "for device", d.ID)
 				return
 			}
 
