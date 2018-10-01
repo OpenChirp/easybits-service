@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/OpenChirp/easybits-service.svg?branch=master)](https://travis-ci.org/OpenChirp/easybits-service)
+
 # Description
 This project houses the Protobuf serialization service
 
